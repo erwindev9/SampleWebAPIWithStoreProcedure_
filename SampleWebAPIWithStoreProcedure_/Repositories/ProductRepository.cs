@@ -57,29 +57,42 @@ namespace SampleWebAPIWithStoreProcedure_.Repositories
             command.Parameters.AddWithValue("@Id", id);
             await connection.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
-            Product product_ = new();
-            while (await reader.ReadAsync()) 
+
+            if (await reader.ReadAsync())
             {
-                product_ = new()
-                { 
+                return new Product
+                {
                     Id = reader.GetInt32(0),
                     Name = reader.GetString(1),
-                    Price = reader.GetDecimal(2),
+                    Price = reader.GetDecimal(2)
                 };
             }
-            return product_;
+
+            return null;
         }
 
         public async Task InsertProduct(Product product)
         {
             using var connection = new SqlConnection(connectionString);
+            using var checkCommand = new SqlCommand("SELECT COUNT(1) FROM Products WHERE Name = @Name", connection);
+            checkCommand.Parameters.AddWithValue("@Name", product.Name);
+
+            await connection.OpenAsync();
+
+            var productExists = (int)await checkCommand.ExecuteScalarAsync() > 0;
+            if (productExists)
+            {
+                throw new Exception($"Product with name '{product.Name}' already exists.");
+            }
+
             using var command = new SqlCommand("InsertProduct", connection)
             {
                 CommandType = CommandType.StoredProcedure
             };
+
             command.Parameters.AddWithValue("@Name", product.Name);
             command.Parameters.AddWithValue("@Price", product.Price);
-            await connection.OpenAsync();
+
             await command.ExecuteNonQueryAsync();
         }
 
