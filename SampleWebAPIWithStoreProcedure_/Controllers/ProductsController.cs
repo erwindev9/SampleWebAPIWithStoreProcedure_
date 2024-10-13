@@ -2,86 +2,69 @@
 using Microsoft.AspNetCore.Mvc;
 using SampleWebAPIWithStoreProcedure_.Interfaces;
 using SampleWebAPIWithStoreProcedure_.Models;
+using SampleWebAPIWithStoreProcedure_.Response;
 
 namespace SampleWebAPIWithStoreProcedure_.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ProductsController(IProduct product_repository) : ControllerBase
+    public class ProductsController : ControllerBase
     {
+        private readonly IProduct product_repository;
+
+        public ProductsController(IProduct product_repository)
+        {
+            this.product_repository = product_repository;
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] Product product)
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(new
-                {
-                    status = "error",
-                    message = "Invalid data",
-                    errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)
-                });
+                return BadRequest(new ApiResponse<IEnumerable<string>>("error", "Invalid data",
+                    ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
             }
 
             try
             {
-                
                 await product_repository.InsertProduct(product);
 
-                var response = new
+                var response = new ApiResponse<object>("success", "Item successfully created", new
                 {
-                    status = "success",
-                    message = "Item successfully created",
-                    data = new
-                    {
-                        id = product.Id,
-                        name = product.Name,
-                        price = product.Price
-                    }
-                };
+                    id = product.Id,
+                    name = product.Name,
+                    price = product.Price
+                });
 
                 return CreatedAtAction(nameof(GetProductById), new { id = product.Id }, response);
             }
             catch (Exception ex)
             {
-               
-                return StatusCode(500, new
-                {
-                    status = "error",
-                    message = "An error occurred while processing your request",
-                    details = ex.Message 
-                });
+                return StatusCode(500, new ApiResponse<string>("error", "An error occurred while processing your request", ex.Message));
             }
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Product>>> GetAll()
+        public async Task<ActionResult<ApiResponse<IEnumerable<object>>>> GetAll()
         {
             try
             {
                 var products = await product_repository.GetAllProducts();
 
-                var response = new
-                {
-                    status = "success",
-                    message = "Items retrieved successfully",
-                    data = products.Select(product => new
+                var response = new ApiResponse<IEnumerable<object>>("success", "Items retrieved successfully",
+                    products.Select(product => new
                     {
                         id = product.Id,
                         name = product.Name,
                         price = product.Price
-                    })
-                };
+                    }));
 
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    status = "error",
-                    message = "An error occurred while retrieving items",
-                    details = ex.Message 
-                });
+                return StatusCode(500, new ApiResponse<string>("error", "An error occurred while retrieving items", ex.Message));
             }
         }
 
@@ -90,12 +73,7 @@ namespace SampleWebAPIWithStoreProcedure_.Controllers
         {
             if (id <= 0)
             {
-                return BadRequest(new
-                {
-                    status = "error",
-                    message = "Invalid product ID",
-                    data = (object)null
-                });
+                return BadRequest(new ApiResponse<object>("error", "Invalid product ID", null));
             }
 
             try
@@ -104,51 +82,30 @@ namespace SampleWebAPIWithStoreProcedure_.Controllers
 
                 if (product == null)
                 {
-                    return NotFound(new
-                    {
-                        status = "error",
-                        message = "Product not found",
-                        data = (object)null
-                    });
+                    return NotFound(new ApiResponse<object>("error", "Product not found", null));
                 }
 
-                var response = new
+                var response = new ApiResponse<object>("success", "Product retrieved successfully", new
                 {
-                    status = "success",
-                    message = "Product retrieved successfully",
-                    data = new
-                    {
-                        id = product.Id,
-                        name = product.Name,
-                        price = product.Price
-                    }
-                };
+                    id = product.Id,
+                    name = product.Name,
+                    price = product.Price
+                });
 
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    status = "error",
-                    message = "An error occurred while retrieving the product",
-                    data = (object)null
-                });
+                return StatusCode(500, new ApiResponse<string>("error", "An error occurred while retrieving the product", ex.Message));
             }
         }
-
 
         [HttpPut]
         public async Task<IActionResult> Update([FromBody] Product product)
         {
             if (product.Id <= 0)
             {
-                return BadRequest(new
-                {
-                    status = "error",
-                    message = "Invalid product ID",
-                    data = (object)null
-                });
+                return BadRequest(new ApiResponse<object>("error", "Invalid product ID", null));
             }
 
             try
@@ -156,53 +113,32 @@ namespace SampleWebAPIWithStoreProcedure_.Controllers
                 var existingProduct = await product_repository.GetProductById(product.Id);
                 if (existingProduct == null)
                 {
-                    return NotFound(new
-                    {
-                        status = "error",
-                        message = "Product not found",
-                        data = (object)null
-                    });
+                    return NotFound(new ApiResponse<object>("error", "Product not found", null));
                 }
 
                 await product_repository.UpdateProduct(product);
 
-                var response = new
+                var response = new ApiResponse<object>("success", "Product updated successfully", new
                 {
-                    status = "success",
-                    message = "Product updated successfully",
-                    data = new
-                    {
-                        id = product.Id,
-                        name = product.Name,
-                        price = product.Price
-                    }
-                };
+                    id = product.Id,
+                    name = product.Name,
+                    price = product.Price
+                });
 
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    status = "error",
-                    message = "An error occurred while updating the product",
-                    data = (object)null
-                });
+                return StatusCode(500, new ApiResponse<string>("error", "An error occurred while updating the product", ex.Message));
             }
         }
-
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
             if (id <= 0)
             {
-                return BadRequest(new
-                {
-                    status = "error",
-                    message = "Invalid product ID",
-                    data = (object)null
-                });
+                return BadRequest(new ApiResponse<object>("error", "Invalid product ID", null));
             }
 
             try
@@ -210,40 +146,24 @@ namespace SampleWebAPIWithStoreProcedure_.Controllers
                 var existingProduct = await product_repository.GetProductById(id);
                 if (existingProduct == null)
                 {
-                    return NotFound(new
-                    {
-                        status = "error",
-                        message = "Product not found",
-                        data = (object)null
-                    });
+                    return NotFound(new ApiResponse<object>("error", "Product not found", null));
                 }
 
                 await product_repository.DeleteProduct(id);
 
-                var response = new
+                var response = new ApiResponse<object>("success", "Product deleted successfully", new
                 {
-                    status = "success",
-                    message = "Product deleted successfully",
-                    data = new
-                    {
-                        id = existingProduct.Id,
-                        name = existingProduct.Name,
-                        price = existingProduct.Price
-                    }
-                };
+                    id = existingProduct.Id,
+                    name = existingProduct.Name,
+                    price = existingProduct.Price
+                });
 
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    status = "error",
-                    message = "An error occurred while deleting the product",
-                    data = (object)null
-                });
+                return StatusCode(500, new ApiResponse<string>("error", "An error occurred while deleting the product", ex.Message));
             }
         }
-
     }
 }
